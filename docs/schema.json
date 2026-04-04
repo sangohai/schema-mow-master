@@ -1,0 +1,23 @@
+{
+  "engine": "Canvas_v3.0",
+  "render_settings": {
+    "viewport": "Standardized 6:10 Stage",
+    "clear_color": "#2d3a27",
+    "fps_target": 60,
+    "interpolation_factor": 0.25
+  },
+  "coordinate_system": {
+    "logic": "Grid Index (Int)",
+    "visual": "Canvas Coordinates (Float/Px)",
+    "mapping": "Logic * CellSize = TargetVisual"
+  },
+  "input_physics": {
+    "step_basis": "Dynamic_Cell_Width",
+    "accumulator_reset_on": "touchend"
+  },
+  "sprite_config": {
+    "tractor": { "emoji": "🚜", "base_rotation": "LEFT" },
+    "grass": { "emoji": "🌿" },
+    "stone": { "emoji": "🪨" }
+  }
+}

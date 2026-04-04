@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Emoji Mow Master</title>
+    
+    <!-- PWA 元数据 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3d5a32">
+    
+    <!-- iOS 全屏适配 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MowMaster">
+
+    <!-- 样式 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-dark text-light overflow-hidden">
+    <!-- 启动封面 -->
+    <div id="start-screen">
+        <div class="display-1 mb-3">🚜</div>
+        <h1 class="fw-bold text-white">Mow Master</h1>
+        <p class="text-white-50 small">滑动屏幕开始收割</p>
+        <button id="start-btn" class="btn btn-success btn-lg px-5 rounded-pill shadow-lg mt-4 fw-bold">进入游戏</button>
+    </div>
+
+    <!-- 沉浸式容器 -->
+    <div id="game-container">
+        <!-- 头部 UI：适配刘海屏 -->
+        <div class="header-ui d-flex justify-content-between align-items-center text-white px-4">
+            <h4 class="m-0 fw-bold">🌾 <span id="score-value">0</span></h4>
+            <div id="level-name" class="badge border border-light opacity-75">LEVEL 1</div>
+        </div>
+
+        <!-- 游戏画布区域 -->
+        <div id="canvas-wrapper">
+            <canvas id="game-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- 结算模态框 -->
+    <div class="modal fade text-dark border-0" id="game-modal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered mx-auto" style="max-width: 320px;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
+                <div class="modal-body text-center p-4">
+                    <h2 class="fw-bold text-success mb-3" id="game-modal-title">MISSION</h2>
+                    <div id="modal-content-text" class="mb-4 fs-5 text-secondary">...</div>
+                    <div class="d-grid gap-2">
+                        <button id="modal-action-btn" class="btn btn-success btn-lg rounded-pill fw-bold">继续</button>
+                        <button id="modal-share-btn" class="btn btn-link text-secondary text-decoration-none">分享</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
+        }
+    </script>
+</body>
+</html>

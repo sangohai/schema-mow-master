@@ -1,0 +1,18 @@
+{
+  "short_name": "MowMaster",
+  "name": "Emoji Mow Master: 极简割草",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2554/2554922.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#2d3a27",
+  "display": "standalone",
+  "theme_color": "#3d5a32",
+  "orientation": "portrait",
+  "description": "极简舒压割草游戏"
+}
