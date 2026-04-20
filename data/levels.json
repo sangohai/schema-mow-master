@@ -2,19 +2,16 @@
   {
     "id": 1,
     "name": "青青草原",
-    "cols": 6, "rows": 10,
-    "startX": 0, "startY": 0,
-    "map": [
-      [0, 1, 1, 1, 1, 1],
-      [1, 1, 2, 1, 1, 1],
-      [1, 1, 1, 1, 2, 1],
-      [1, 2, 1, 1, 1, 1],
-      [1, 1, 1, 1, 1, 1],
-      [1, 1, 2, 1, 1, 1],
-      [1, 1, 1, 1, 2, 1],
-      [1, 2, 1, 1, 1, 1],
-      [1, 1, 1, 1, 1, 1],
-      [1, 1, 1, 1, 1, "E"]
+    "cols": 6,
+    "scrollSpeed": 0.8,
+    "targets": [
+      { "id": "grass", "emoji": "🌿", "goal": 20, "baseScore": 10 },
+      { "id": "flower", "emoji": "🌸", "goal": 5, "baseScore": 50 },
+      { "id": "gem", "emoji": "💎", "goal": 3, "baseScore": 100 }
+    ],
+    "timeBonuses": [
+      { "limit": 20, "mult": 2.0 },
+      { "limit": 40, "mult": 1.5 }
     ]
   }
 ]

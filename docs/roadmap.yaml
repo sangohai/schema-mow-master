@@ -1,22 +1,12 @@
 phase:
-  1_Engine_Migration:
-    status: "COMPLETED"
-    tasks:
-      - "DOM 逻辑到 Canvas 渲染层重构"
-      - "Lerp 线性插值平滑算法实现"
-      - "1:1 物理步进触控同步"
-      - "高清屏 (DPR) 自动适配"
+  1_Waterfall_Engine:
+    status: "COMPLETE"
+    tasks: ["Infinite Row Recycling", "DPR Alignment", "Start-up Full Fill"]
+  
+  2_HUD_System:
+    status: "COMPLETE"
+    tasks: ["Floating HUD", "PWA Standalone Mode", "Safe Area Support"]
 
-  2_Visual_Juiciness (Next Focus):
-    status: "planning"
-    tasks:
-      - "Grass Particles: 割草瞬间迸发碎草屑 (Canvas 粒子)"
-      - "Tractor Wobble: 移动时推土机轻微颠簸感"
-      - "Combo Popups: 连续收割的分数漂浮文字"
-      - "Screen Shake: 撞击石头时的轻微屏幕震动"
-
-  3_Level_&_Cloud:
-    status: "backlog"
-    tasks:
-      - "JSON 关卡编辑器"
-      - "Supabase 全球实时排行榜"
+  3_Juiciness_VFX (NEXT):
+    status: "PLANNED"
+    tasks: ["Item Fly-to-Dock Animation", "Floating Score Popups", "Screen Shake"]

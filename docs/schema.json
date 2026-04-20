@@ -1,23 +1,15 @@
 {
-  "engine": "Canvas_v3.0",
-  "render_settings": {
-    "viewport": "Standardized 6:10 Stage",
-    "clear_color": "#2d3a27",
-    "fps_target": 60,
-    "interpolation_factor": 0.25
+  "version": "5.5",
+  "engine": "Canvas_Waterfall_v5",
+  "logic": {
+    "columns": 6,
+    "buffer_rows": 12,
+    "scroll_speed_base": 0.8,
+    "regrowth_speed": 0.003
   },
-  "coordinate_system": {
-    "logic": "Grid Index (Int)",
-    "visual": "Canvas Coordinates (Float/Px)",
-    "mapping": "Logic * CellSize = TargetVisual"
-  },
-  "input_physics": {
-    "step_basis": "Dynamic_Cell_Width",
-    "accumulator_reset_on": "touchend"
-  },
-  "sprite_config": {
-    "tractor": { "emoji": "🚜", "base_rotation": "LEFT" },
-    "grass": { "emoji": "🌿" },
-    "stone": { "emoji": "🪨" }
+  "ui_mapping": {
+    "header": ".header-ui",
+    "dock": "#task-dock",
+    "task_list": "#task-list"
   }
 }

@@ -8,117 +8,223 @@ export class GameManager {
         this.score = 0;
         this.currentLevelIdx = 0;
         this.levels = [];
-        this.player = { x: 0, y: 0 };
-        this.visualPos = { x: 0, y: 0 };
-        this.rotation = { angle: 0, flipX: false };
-        this.isMoving = false;
-        this.inputQueue = [];
-        this.state = 'LOADING'; // 状态机：LOADING | PLAYING | WON
+        this.rows = []; 
+        this.mission = {}; 
+        
+        // 核心状态控制
+        this.state = 'LOADING'; 
+        this.isGameStarted = false; // 控制是否滚动的开关
 
         this.init();
-        this.loop(); // 启动唯一的渲染循环
     }
 
     async init() {
         try {
-            // 适配 GitHub Pages 的相对路径加载
             const res = await fetch('./data/levels.json');
             this.levels = await res.json();
-            this.loadLevel(0);
-            this.state = 'PLAYING';
-            
-            window.addEventListener('resize', () => this.handleResize());
-        } catch (e) {
-            console.error("加载关卡失败:", e);
-        }
+            // 立即渲染第一屏静态画面
+            setTimeout(() => {
+                this.startLevel(0);
+                this.tick(); // 开启渲染，但不滚动
+            }, 300);
+        } catch (e) { console.error(e); }
     }
 
-    loadLevel(idx) {
+    /**
+     * 点击“开始收割”按钮调用的方法
+     */
+    startGame() {
+        this.isGameStarted = true;
+        this.state = 'PLAYING';
+        this.levelStartTime = Date.now();
+        // 隐藏封面
+        document.getElementById('start-screen').classList.add('d-none');
+    }
+
+    startLevel(idx) {
         this.currentLevelIdx = idx;
         const lv = this.levels[idx];
-        this.player = { x: lv.startX, y: lv.startY };
-        this.canvas.resize(lv.cols, lv.rows);
-        this.visualPos = { 
-            x: this.player.x * this.canvas.grid.cellW, 
-            y: this.player.y * this.canvas.grid.cellH 
-        };
+        this.score = 0;
+        this.rows = [];
+        this.mission = {};
+        
+        this.canvas.resize(lv.cols);
+        
+        // 初始化任务 UI ... (保持原有代码)
+        const dock = document.getElementById('task-list');
+        dock.innerHTML = '';
+        lv.targets.forEach(t => {
+            this.mission[t.id] = { ...t, current: 0 };
+            const li = document.createElement('li');
+            li.id = `task-${t.id}`;
+            li.className = 'task-item';
+            li.innerHTML = `${t.emoji}<span class="badge bg-danger task-badge">${t.goal}</span>`;
+            dock.appendChild(li);
+        });
+
+        const cellH = this.canvas.grid.cellH;
+        const canvasH = this.canvas.canvas.height / this.canvas.dpr;
+        
+        // --- 核心修复：从上往下物理排序填充 ---
+        // 预留 2 行在屏幕上方，其余铺满全屏
+        let currentY = -cellH * 2; 
+        while (currentY < canvasH) {
+            const newRow = this.createRowObject(currentY);
+            this.rows.push(newRow); // 使用 push，保证 rows[0] 是最上面的
+            currentY += cellH;
+        }
+        
+        this.state = 'READY';
         this.ui.refresh(this.score, lv.name);
     }
 
-    handleResize() {
+    createRowObject(yPos) {
         const lv = this.levels[this.currentLevelIdx];
-        if (lv) {
-            this.canvas.resize(lv.cols, lv.rows);
-            // 重新同步像素坐标
-            this.visualPos = { 
-                x: this.player.x * this.canvas.grid.cellW, 
-                y: this.player.y * this.canvas.grid.cellH 
-            };
+        const newRow = { y: yPos, tiles: [] };
+        for (let i = 0; i < lv.cols; i++) {
+            const rand = Math.random();
+            let type = (rand < 0.1) ? 'flower' : (rand < 0.2 ? 'empty' : 'grass');
+            newRow.tiles.push({
+                type,
+                emoji: type === 'flower' ? '🌸' : (type === 'empty' ? '' : '🌿'),
+                state: type === 'empty' ? 'EMPTY' : 'FULL',
+                growth: 1.0,
+                treasure: Math.random() > 0.94 ? 'gem' : null,
+                treasureEmoji: '💎',
+                revealed: false
+            });
         }
+        return newRow;
     }
 
-    loop() {
-        if (this.state === 'PLAYING') {
-            this.updateVisuals();
-            this.canvas.render({
-                visualPos: this.visualPos,
-                rotation: this.rotation
-            }, this.levels[this.currentLevelIdx]);
-        }
-        requestAnimationFrame(() => this.loop());
-    }
+    tick() {
+        this.canvas.render(this.rows);
 
-    updateVisuals() {
-        const targetX = this.player.x * this.canvas.grid.cellW;
-        const targetY = this.player.y * this.canvas.grid.cellH;
-        // 丝滑跟随系数
-        this.visualPos.x += (targetX - this.visualPos.x) * 0.3;
-        this.visualPos.y += (targetY - this.visualPos.y) * 0.3;
-    }
+        if (this.isGameStarted && this.state === 'PLAYING') {
+            const lv = this.levels[this.currentLevelIdx];
+            const cellH = this.canvas.grid.cellH;
+            const canvasH = this.canvas.canvas.height / this.canvas.dpr;
 
-    // enqueueMove, processQueue, nextLevel 等逻辑保持之前版本...
-    enqueueMove(dir) {
-        if (this.inputQueue.length < 3) this.inputQueue.push(dir);
-        this.processQueue();
-    }
+            // 1. 所有行向下滚动
+            this.rows.forEach(r => r.y += lv.scrollSpeed);
 
-    processQueue() {
-        if (this.isMoving || this.inputQueue.length === 0) return;
-        this.isMoving = true;
-        const dir = this.inputQueue.shift();
-        const lv = this.levels[this.currentLevelIdx];
-        let nx = this.player.x, ny = this.player.y;
-
-        if (dir === 'UP') ny--; else if (dir === 'DOWN') ny++;
-        else if (dir === 'LEFT') nx--; else if (dir === 'RIGHT') nx++;
-
-        // 方向翻转逻辑
-        if (dir === 'LEFT') this.rotation = { angle: 0, flipX: false };
-        if (dir === 'RIGHT') this.rotation = { angle: 0, flipX: true };
-        if (dir === 'UP') this.rotation = { angle: 90, flipX: false };
-        if (dir === 'DOWN') this.rotation = { angle: -90, flipX: false };
-
-        const val = lv.map[ny]?.[nx];
-        if (val !== undefined && val !== 2) {
-            this.player = { x: nx, y: ny };
-            if (val === 1) {
-                this.score += 10;
-                lv.map[ny][nx] = 0;
-                this.ui.refresh(this.score, lv.name);
-                if (navigator.vibrate) navigator.vibrate(10);
+            // 2. 回收底部，生成顶部 (物理对齐逻辑)
+            // 检查数组中物理位置最后一行（最下方）
+            const bottomRow = this.rows[this.rows.length - 1];
+            if (bottomRow && bottomRow.y > canvasH) {
+                this.rows.pop(); // 移除最下面的一行
+                
+                // 在最上面补一行：坐标是当前第一行的 y 减去一行高度
+                const topRowY = this.rows[0].y;
+                const newRow = this.createRowObject(topRowY - cellH);
+                this.rows.unshift(newRow); // 插入到数组开头
             }
-            setTimeout(() => {
-                this.isMoving = false;
-                if (val === 'E') {
-                    this.inputQueue = [];
-                    this.ui.showWin(this.currentLevelIdx === this.levels.length - 1);
-                } else this.processQueue();
-            }, 85);
+
+            // 3. 再生逻辑
+            this.rows.forEach(r => r.tiles.forEach(t => {
+                if (t.state === 'REGEN' && !t.revealed) {
+                    t.growth += 0.003; 
+                    if (t.growth >= 1) { t.state = 'FULL'; t.growth = 1; }
+                }
+            }));
+        }
+        requestAnimationFrame(() => this.tick());
+    }
+
+    handleSwipe(clientX, clientY) {
+        // 没点开始前，不允许割草
+        if (!this.isGameStarted || this.state !== 'PLAYING') return;
+        
+        const rect = this.canvas.canvas.getBoundingClientRect();
+        const cx = clientX - rect.left;
+        const cy = clientY - rect.top;
+        const { grid } = this.canvas;
+
+        this.rows.forEach(row => {
+            if (cy >= row.y && cy <= row.y + grid.cellH) {
+                const col = Math.floor(cx / grid.cellW);
+                const tile = row.tiles[col];
+                if (tile && tile.state === 'FULL') {
+                    this.collect(tile, cx, cy);
+                } else if (tile && tile.revealed) {
+                    this.collectTreasure(tile, cx, cy);
+                }
+            }
+        });
+    }
+
+    collect(tile, x, y) {
+        const tid = tile.type === 'flower' ? 'flower' : 'grass';
+        const task = this.mission[tid];
+        if (task) {
+            if (task.current < task.goal) {
+                task.current++;
+                this.updateDock(tid);
+            }
+            this.score += task.baseScore;
+        }
+
+        // 露出宝藏但不立刻收集分数，等待玩家划过
+        if (tile.treasure && !tile.revealed) {
+            tile.revealed = true;
+            // 此时不设置 REGEN 状态，保持 revealed
         } else {
-            this.isMoving = false;
-            this.inputQueue = [];
+            tile.state = 'REGEN';
+            tile.growth = 0;
+        }
+
+        this.ui.refresh(this.score, this.levels[this.currentLevelIdx].name);
+        this.canvas.createParticles(x, y);
+        if (navigator.vibrate) navigator.vibrate(8);
+        this.checkWin();
+    }
+
+    collectTreasure(tile, x, y) {
+        tile.revealed = false; // 移除宝藏
+        tile.state = 'REGEN';  // 开始再生草
+        tile.growth = 0;
+        
+        if (this.mission['gem']) {
+            this.mission['gem'].current++;
+            this.updateDock('gem');
+            this.score += this.mission['gem'].baseScore;
+            this.ui.refresh(this.score, this.levels[this.currentLevelIdx].name);
+        }
+        this.canvas.createParticles(x, y);
+        if (navigator.vibrate) navigator.vibrate(12);
+        this.checkWin();
+    }
+
+    updateDock(id) {
+        const item = this.mission[id];
+        const el = document.getElementById(`task-${id}`);
+        if (el) {
+            const badge = el.querySelector('.badge');
+            const rem = item.goal - item.current;
+            if (rem <= 0) {
+                badge.innerHTML = '✓';
+                badge.className = 'badge bg-success task-badge';
+            } else badge.innerText = rem;
         }
     }
 
-    nextLevel() { this.loadLevel(this.currentLevelIdx + 1); }
+    checkWin() {
+        if (Object.values(this.mission).every(t => t.current >= t.goal)) {
+            this.state = 'WON';
+            this.calculateFinalScore();
+            this.ui.showWin(this.currentLevelIdx === this.levels.length - 1);
+        }
+    }
+
+    calculateFinalScore() {
+        const duration = (Date.now() - this.levelStartTime) / 1000;
+        const lv = this.levels[this.currentLevelIdx];
+        let multiplier = 1.0;
+        for (let bonus of lv.timeBonuses) {
+            if (duration <= bonus.limit) { multiplier = bonus.mult; break; }
+        }
+        if (multiplier > 1.0) this.score = Math.floor(this.score * multiplier);
+    }
+
+    nextLevel() { this.startLevel(this.currentLevelIdx + 1); }
 }

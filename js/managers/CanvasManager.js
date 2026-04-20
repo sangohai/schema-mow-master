@@ -1,109 +1,85 @@
 export class CanvasManager {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        // 关键：alpha: false 提高性能并彻底消除“背景透出导致的暗沉感”
         this.ctx = this.canvas.getContext('2d', { alpha: false });
         this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-        this.grid = { cols: 6, rows: 10, cellW: 0, cellH: 0 };
+        this.grid = { cols: 6, cellW: 0, cellH: 0 };
+        this.particles = [];
     }
 
-    /**
-     * 核心：高精度画布适配
-     */
-    resize(cols, rows) {
+    resize(cols) {
         const wrapper = this.canvas.parentElement;
-        if (!wrapper) return;
+        const w = wrapper.clientWidth;
+        const h = wrapper.clientHeight; // 现在的 h 是 100% 全屏
+        
+        const scale = w / cols;
+        this.canvas.width = w * this.dpr;
+        this.canvas.height = h * this.dpr;
+        this.canvas.style.width = `${w}px`;
+        this.canvas.style.height = `${h}px`;
 
-        // 确保容器尺寸已稳定
-        const w = wrapper.clientWidth || window.innerWidth;
-        const h = wrapper.clientHeight || window.innerHeight;
-
-        // 锁定 6:10 比例并预留 10% 的安全边距
-        const scale = Math.min((w - 40) / cols, (h - 120) / rows);
-        const logicalW = Math.floor(cols * scale);
-        const logicalH = Math.floor(rows * scale);
-
-        this.canvas.width = logicalW * this.dpr;
-        this.canvas.height = logicalH * this.dpr;
-        this.canvas.style.width = `${logicalW}px`;
-        this.canvas.style.height = `${logicalH}px`;
-
-        // 关键：每次 Resize 必须彻底重置变换矩阵
         this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-        this.grid = { cols, rows, cellW: scale, cellH: scale };
+        this.grid = { cols, cellW: scale, cellH: scale };
     }
 
-    /**
-     * 核心渲染：每一帧都是从白纸开始，确保没有残留遮罩
-     */
-    render(gameState, levelData) {
+    render(rows) {
+        if (!this.grid.cellW) return;
         const { ctx, grid } = this;
-        if (!grid.cellW || !levelData) return;
+        const canvasH = this.canvas.height / this.dpr;
 
-        // 1. 彻底涂抹背景：使用明亮的青苔绿 (消除“暗沉感”)
         ctx.fillStyle = "#5a824e"; 
-        ctx.fillRect(0, 0, grid.cols * grid.cellW, grid.rows * grid.cellH);
+        ctx.fillRect(0, 0, grid.cols * grid.cellW, canvasH);
 
-        // 2. 绘制地块与图标
-        const map = levelData.map;
-        for (let y = 0; y < grid.rows; y++) {
-            for (let x = 0; x < grid.cols; x++) {
+        rows.forEach((row) => {
+            if (row.y < -grid.cellH || row.y > canvasH) return;
+
+            row.tiles.forEach((tile, x) => {
                 const px = Math.floor(x * grid.cellW);
-                const py = Math.floor(y * grid.cellH);
-                const cw = Math.ceil(grid.cellW);
-                const ch = Math.ceil(grid.cellH);
+                const py = Math.floor(row.y);
+                
+                ctx.fillStyle = "rgba(0,0,0,0.15)";
+                ctx.fillRect(px + 2, py + 2, grid.cellW - 4, grid.cellH - 4);
 
-                // 绘制地块：未割草为浅色，割过为深色
-                ctx.fillStyle = map[y][x] === 0 ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.08)";
-                ctx.fillRect(px + 3, py + 3, cw - 6, ch - 6);
-
-                // 绘制静态物品
-                const item = map[y][x];
-                if (item === 1) this.drawText("🌿", px, py, 0.65);
-                if (item === 2) this.drawText("🪨", px, py, 0.6);
-                if (item === "E") this.drawText("🏁", px, py, 0.6);
-            }
-        }
-
-        // 3. 绘制动态推土机
-        this.drawTractor(gameState);
+                /**
+                 * 视觉修复逻辑：
+                 * 1. 如果宝藏已被露出，则不画正在再生的草，防止重叠遮挡。
+                 * 2. 只有宝藏消失后，草才开始再生（由 GameManager 控制逻辑）。
+                 */
+                if (tile.revealed && tile.treasure) {
+                    this.drawIcon(tile.treasureEmoji, px, py, 0.85);
+                } else if (tile.state !== 'EMPTY') {
+                    const s = tile.growth || 1;
+                    this.drawIcon(tile.emoji, px, py, s * 0.7);
+                }
+            });
+        });
+        this.drawParticles();
     }
 
-    drawText(emoji, x, y, scale) {
+    drawIcon(emoji, x, y, scale) {
         const size = Math.floor(this.grid.cellW * scale);
         this.ctx.font = `bold ${size}px sans-serif`;
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
-        this.ctx.fillStyle = "#ffffff";
-        this.ctx.fillText(emoji, x + this.grid.cellW/2, y + this.grid.cellH/2 + 4);
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText(emoji, x + this.grid.cellW/2, y + this.grid.cellH/2 + 2);
     }
 
-    drawTractor(state) {
-        const { ctx, grid } = this;
-        const { visualPos, rotation } = state;
+    createParticles(x, y) {
+        for (let i = 0; i < 8; i++) {
+            this.particles.push({
+                x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+                life: 1.0, color: `rgba(120, ${180 + Math.random()*50}, 80, `
+            });
+        }
+    }
 
-        // 像素对齐：解决模糊和透明感的终极方案
-        const tx = Math.round(visualPos.x + grid.cellW / 2);
-        const ty = Math.round(visualPos.y + grid.cellH / 2);
-
-        ctx.save();
-        ctx.translate(tx, ty);
-
-        // 处理方向翻转
-        if (rotation.flipX) ctx.scale(-1, 1);
-        ctx.rotate(rotation.angle * Math.PI / 180);
-
-        const size = Math.floor(grid.cellW * 0.9);
-        ctx.font = `bold ${size}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        
-        // 增加白色微光：确保图标在任何背景下都清晰不透明
-        ctx.shadowColor = "rgba(0,0,0,0.4)";
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = "white";
-        ctx.fillText("🚜", 0, 0);
-        
-        ctx.restore();
+    drawParticles() {
+        this.particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+            if (p.life <= 0) return this.particles.splice(i, 1);
+            this.ctx.fillStyle = p.color + p.life + ")";
+            this.ctx.fillRect(p.x, p.y, 4, 4);
+        });
     }
 }

@@ -1,17 +1,14 @@
-# Blueprint: schema-mow-master (v3.0 - Canvas 引擎版)
+# Blueprint: schema-mow-master (v5.5 - Stable Waterfall Engine)
 
-## 1. 渲染管线：60FPS 实时重绘 (Real-time Pipeline)
-- **机制**：由 `requestAnimationFrame` 驱动的 `tick()` 主循环。
-- **高清适配**：引入 `devicePixelRatio (DPR)` 缩放算法，自动适配 Retina/高分屏，解决 Emoji 模糊问题。
-- **性能优化**：全量位图渲染，跳过 DOM 布局计算，渲染延迟降至 1ms 级。
+## 1. 核心架构：双向队列回收 (Bi-directional Row Management)
+- **物理映射**：`rows[0]` 始终对应屏幕最上方，`rows[n]` 对应最下方。
+- **循环算法**：当 `rows[last].y > ScreenHeight` 时，执行 `pop()` 并使用 `unshift()` 在顶部补充新行，位置参考 `rows[0].y - cellHeight`。
+- **结果**：实现了零断层、低内存占用的无限滚动。
 
-## 2. 平滑算法：线性插值 (Linear Interpolation / Lerp)
-- **逻辑位置 (Logic Pos)**：由网格索引 (x, y) 决定，呈离散跳变。
-- **视觉位置 (Visual Pos)**：由公式 `V = V + (Target - V) * Factor` 驱动。
-- **参数 Factor**：设定为 `0.25`。
-- **效果**：推土机在格间移动时产生连贯的平移轨迹，彻底消除“瞬移感”。
+## 2. 状态机与再生逻辑 (Regrowth Protocol)
+- **Tile 状态**：`FULL` (可割), `EMPTY` (空地), `REGEN` (再生中), `REVEALED` (露出道具)。
+- **冲突保护**：若格位处于 `REVEALED` 状态，强制挂起 `REGEN` 计时器，直到道具被收集。
 
-## 3. 操控协议：1:1 物理步进同步
-- **输入层**：物理步进累加器捕获手指位移。
-- **同步率**：手指移动一格的物理宽度，指令即入队。
-- **指令缓冲**：支持 3 级 Input Buffer，确保快速划动时不丢指令。
+## 3. UI 规范：HUD 全屏沉浸模式
+- **层级**：Canvas 铺满 100dvh。UI 采用半透明渐变背景，`absolute` 定位悬浮于 Canvas 之上。
+- **交互**：UI 容器设置 `pointer-events: none`，确保用户可以划动 UI 覆盖区域内的草丛。
